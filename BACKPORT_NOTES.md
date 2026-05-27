@@ -6,7 +6,7 @@ walrus operators, and other Python 3-only constructs.
 
 ## CVE-2024-22195 — `xmlattr` filter: spaces in attribute keys
 
-**Upstream fix:** Jinja 3.1.3, commit `716795349e6f40c7ef4c4e77a3d23f35a57fb7c0`
+**Upstream fix:** Jinja 3.1.3, commit `7dd3680e6eea0d77fde024763657aa4d884ddb23`
 **Files changed:** `src/jinja2/filters.py`
 
 The `do_xmlattr` filter now rejects attribute keys containing whitespace
@@ -19,7 +19,7 @@ regex (shared with CVE-2024-34064 fix) and raises `FilterArgumentError`.
 
 ## CVE-2024-34064 — `xmlattr` filter: `/`, `>`, `=` in attribute keys
 
-**Upstream fix:** Jinja 3.1.4, commit `0668239dc6b44d0e255ce99b86a4adfd22b4b8d8`
+**Upstream fix:** Jinja 3.1.4, commit `d655030770081e2dfe46f90e27620472a502289d`
 **Files changed:** `src/jinja2/filters.py`
 
 Extended CVE-2024-22195 fix to also reject `/`, `>`, and `=` characters in
@@ -31,7 +31,7 @@ Error message says "Invalid character in attribute name".
 
 ## CVE-2024-56326 — Sandbox bypass via indirect `str.format` reference
 
-**Upstream fix:** Jinja 3.1.5, commit `91a972f503fe009cad77ae699cad87def24b9f8`
+**Upstream fix:** Jinja 3.1.5, commit `91a972f5808973cd441f4dc06873b2f8378f30c7`
 **Files changed:** `src/jinja2/sandbox.py`
 
 A custom Jinja filter could capture a reference to `str.format` or
@@ -53,7 +53,7 @@ The old `inspect_format_method` path in `call()` has been removed.
 
 ## CVE-2025-27516 — Sandbox bypass via `|attr` filter accessing `format`
 
-**Upstream fix:** Jinja 3.1.6, commit (attr filter sandbox routing)
+**Upstream fix:** Jinja 3.1.6, commit `065334d1ee5b7210e1a0a93c37238c86858f2af7`
 **Files changed:** `src/jinja2/filters.py`
 
 The `|attr` filter used `getattr` directly without going through
