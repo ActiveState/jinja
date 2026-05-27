@@ -1,5 +1,22 @@
 .. currentmodule:: jinja2
 
+Version 2.11.3+security.1
+--------------------------
+
+-   ``xmlattr`` filter rejects keys containing whitespace, preventing
+    attribute injection via user-controlled keys. (CVE-2024-22195,
+    GHSA-h5c8-rqwp-cp95)
+-   ``xmlattr`` filter also rejects keys containing ``/``, ``>``, and ``=``,
+    closing the remaining attribute-injection vectors. (CVE-2024-34064,
+    GHSA-h75v-3vvj-5mfj)
+-   ``SandboxedEnvironment`` wraps ``str.format`` and ``str.format_map``
+    methods at attribute access time, so custom filters cannot invoke them
+    outside the sandbox. (CVE-2024-56326, GHSA-q2x7-8rv6-6q7h)
+-   The ``|attr`` filter routes attribute access through
+    ``environment.getattr`` in sandboxed environments, closing a path that
+    bypassed ``is_safe_attribute`` checks. (CVE-2025-27516,
+    GHSA-cpwx-vrp4-4pq7)
+
 Version 2.11.3
 --------------
 

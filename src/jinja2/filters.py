@@ -26,6 +26,7 @@ from .utils import urlize
 
 _word_re = re.compile(r"\w+", re.UNICODE)
 _word_beginning_split_re = re.compile(r"([-\s\(\{\[\<]+)", re.UNICODE)
+_attr_key_space_re = re.compile(r"\s")
 
 
 def contextfilter(f):
@@ -229,11 +230,17 @@ def do_xmlattr(_eval_ctx, d, autospace=True):
     As you can see it automatically prepends a space in front of the item
     if the filter returned something unless the second parameter is false.
     """
-    rv = u" ".join(
-        u'%s="%s"' % (escape(key), escape(value))
-        for key, value in iteritems(d)
-        if value is not None and not isinstance(value, Undefined)
-    )
+    # Backport of CVE-2024-22195 from Jinja 3.1.3 — see BACKPORT_NOTES.md
+    items = []
+    for key, value in iteritems(d):
+        if value is None or isinstance(value, Undefined):
+            continue
+        if _attr_key_space_re.search(key) is not None:
+            raise FilterArgumentError(
+                "Spaces are not allowed in attributes: %r" % key
+            )
+        items.append(u'%s="%s"' % (escape(key), escape(value)))
+    rv = u" ".join(items)
     if autospace and rv:
         rv = u" " + rv
     if _eval_ctx.autoescape:
