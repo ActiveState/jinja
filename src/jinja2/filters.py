@@ -1072,10 +1072,15 @@ def do_attr(environment, obj, name):
         except AttributeError:
             pass
         else:
-            if environment.sandboxed and not environment.is_safe_attribute(
-                obj, name, value
-            ):
-                return environment.unsafe_undefined(obj, name)
+            if environment.sandboxed:
+                # Backport of CVE-2025-27516 from Jinja 3.1.6 — see BACKPORT_NOTES.md.
+                # Block str.format/str.format_map: |attr must not deliver a
+                # callable that bypasses the sandboxed call() path.
+                wrap = getattr(environment, "wrap_str_format", None)
+                if wrap is not None and wrap(value) is not None:
+                    return environment.unsafe_undefined(obj, name)
+                if not environment.is_safe_attribute(obj, name, value):
+                    return environment.unsafe_undefined(obj, name)
             return value
     return environment.undefined(obj=obj, name=name)
 
