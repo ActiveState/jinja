@@ -454,6 +454,27 @@ class TestFilter(object):
         assert u'class="foo"' in out
         assert u'id="bar"' in out
 
+    def test_xmlattr_rejects_slash_in_key(self, env):
+        """CVE-2024-34064: keys with / must raise."""
+        with pytest.raises(Exception):
+            env.from_string(u"{{ data|xmlattr }}").render(
+                data={u"x/y": u"z"}
+            )
+
+    def test_xmlattr_rejects_gt_in_key(self, env):
+        """CVE-2024-34064: keys with > must raise."""
+        with pytest.raises(Exception):
+            env.from_string(u"{{ data|xmlattr }}").render(
+                data={u"x>injected": u"z"}
+            )
+
+    def test_xmlattr_rejects_equals_in_key(self, env):
+        """CVE-2024-34064: keys with = must raise."""
+        with pytest.raises(Exception):
+            env.from_string(u"{{ data|xmlattr }}").render(
+                data={u"x=evil": u"z"}
+            )
+
     def test_sort1(self, env):
         tmpl = env.from_string("{{ [2, 3, 1]|sort }}|{{ [2, 3, 1]|sort(true) }}")
         assert tmpl.render() == "[1, 2, 3]|[3, 2, 1]"
