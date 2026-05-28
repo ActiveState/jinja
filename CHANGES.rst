@@ -3,6 +3,8 @@
 Version 2.11.3+security.1
 --------------------------
 
+Released 2026-05-28
+
 -   ``xmlattr`` filter rejects keys containing whitespace, preventing
     attribute injection via user-controlled keys. (CVE-2024-22195,
     GHSA-h5c8-rqwp-cp95)
