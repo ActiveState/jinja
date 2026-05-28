@@ -26,6 +26,9 @@ from .utils import urlize
 
 _word_re = re.compile(r"\w+", re.UNICODE)
 _word_beginning_split_re = re.compile(r"([-\s\(\{\[\<]+)", re.UNICODE)
+# Backport of CVE-2024-34064 from Jinja 3.1.4 — see BACKPORT_NOTES.md
+# https://html.spec.whatwg.org/#attribute-name-state
+_attr_key_re = re.compile(r"[\s/>=]")
 
 
 def contextfilter(f):
@@ -229,11 +232,17 @@ def do_xmlattr(_eval_ctx, d, autospace=True):
     As you can see it automatically prepends a space in front of the item
     if the filter returned something unless the second parameter is false.
     """
-    rv = u" ".join(
-        u'%s="%s"' % (escape(key), escape(value))
-        for key, value in iteritems(d)
-        if value is not None and not isinstance(value, Undefined)
-    )
+    # Backport of CVE-2024-22195 + CVE-2024-34064 from Jinja 3.1.3/3.1.4 — see BACKPORT_NOTES.md
+    items = []
+    for key, value in iteritems(d):
+        if value is None or isinstance(value, Undefined):
+            continue
+        if _attr_key_re.search(key) is not None:
+            raise FilterArgumentError(
+                "Invalid character in attribute name: %r" % key
+            )
+        items.append(u'%s="%s"' % (escape(key), escape(value)))
+    rv = u" ".join(items)
     if autospace and rv:
         rv = u" " + rv
     if _eval_ctx.autoescape:
@@ -1063,10 +1072,15 @@ def do_attr(environment, obj, name):
         except AttributeError:
             pass
         else:
-            if environment.sandboxed and not environment.is_safe_attribute(
-                obj, name, value
-            ):
-                return environment.unsafe_undefined(obj, name)
+            if environment.sandboxed:
+                # Backport of CVE-2025-27516 from Jinja 3.1.6 — see BACKPORT_NOTES.md.
+                # Block str.format/str.format_map: |attr must not deliver a
+                # callable that bypasses the sandboxed call() path.
+                wrap = getattr(environment, "wrap_str_format", None)
+                if wrap is not None and wrap(value) is not None:
+                    return environment.unsafe_undefined(obj, name)
+                if not environment.is_safe_attribute(obj, name, value):
+                    return environment.unsafe_undefined(obj, name)
             return value
     return environment.undefined(obj=obj, name=name)
 

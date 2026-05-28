@@ -394,6 +394,9 @@ class SandboxedEnvironment(Environment):
                     except AttributeError:
                         pass
                     else:
+                        fmt = self.wrap_str_format(value)
+                        if fmt is not None:
+                            return fmt
                         if self.is_safe_attribute(obj, argument, value):
                             return value
                         return self.unsafe_undefined(obj, argument)
@@ -411,6 +414,9 @@ class SandboxedEnvironment(Environment):
             except (TypeError, LookupError):
                 pass
         else:
+            fmt = self.wrap_str_format(value)
+            if fmt is not None:
+                return fmt
             if self.is_safe_attribute(obj, attribute, value):
                 return value
             return self.unsafe_undefined(obj, attribute)
@@ -425,6 +431,35 @@ class SandboxedEnvironment(Environment):
             obj=obj,
             exc=SecurityError,
         )
+
+    def wrap_str_format(self, value):
+        """Backport of CVE-2024-56326 from Jinja 3.1.5 — see BACKPORT_NOTES.md.
+
+        If value is a str.format or str.format_map bound method, return a
+        sentinel wrapper that raises SecurityError when called directly. The
+        sandboxed call() method detects the sentinel and routes the call
+        through format_string instead, allowing safe template-level usage
+        while blocking custom filters that store and invoke the method outside
+        the sandboxed call path.
+        Returns None when value is not a string format method.
+        """
+        if not isinstance(
+            value, (types.MethodType, types.BuiltinMethodType)
+        ) or value.__name__ not in ("format", "format_map"):
+            return None
+        obj = value.__self__
+        if not isinstance(obj, string_types):
+            return None
+
+        def wrapper(*args, **kwargs):
+            raise SecurityError(
+                "Use of str.format or str.format_map is not allowed "
+                "outside the sandboxed call path."
+            )
+
+        wrapper.__name__ = value.__name__
+        wrapper._jinja2_sandboxed_format = value
+        return wrapper
 
     def format_string(self, s, args, kwargs, format_func=None):
         """If a format call is detected, then this is routed through this
@@ -451,12 +486,18 @@ class SandboxedEnvironment(Environment):
 
     def call(__self, __context, __obj, *args, **kwargs):  # noqa: B902
         """Call an object from sandboxed code."""
-        fmt = inspect_format_method(__obj)
-        if fmt is not None:
-            return __self.format_string(fmt, args, kwargs, __obj)
+        # Backport of CVE-2024-56326 from Jinja 3.1.5 — see BACKPORT_NOTES.md.
+        # wrap_str_format wraps str.format/str.format_map at attribute access
+        # time. The wrapper raises SecurityError when called by a filter, but
+        # the sandboxed call path detects the sentinel and routes safely.
 
         # the double prefixes are to avoid double keyword argument
         # errors when proxying the call.
+        fmt_method = getattr(__obj, "_jinja2_sandboxed_format", None)
+        if fmt_method is not None:
+            return __self.format_string(
+                fmt_method.__self__, args, kwargs, fmt_method
+            )
         if not __self.is_safe_callable(__obj):
             raise SecurityError("%r is not safely callable" % (__obj,))
         return __context.call(__obj, *args, **kwargs)

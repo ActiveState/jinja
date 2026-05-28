@@ -208,3 +208,55 @@ class TestStringFormatMap(object):
             '{{ ("a{x.foo}b{y}"|safe).format_map({"x":{"foo": 42}, "y":"<foo>"}) }}'
         )
         assert t.render() == "a42b&lt;foo&gt;"
+
+
+class TestCVE202456326(object):
+    """CVE-2024-56326: sandbox must block indirect str.format via custom filter."""
+
+    def test_indirect_format_via_custom_filter_is_blocked(self):
+        """Storing ''.format via a filter and calling it must not bypass sandbox."""
+        env = SandboxedEnvironment()
+        env.filters[u"call"] = lambda f: f(u"{0.__class__}", (42,))
+        t = env.from_string(u"{{ ''.format|call }}")
+        with pytest.raises(Exception):
+            t.render()
+
+    def test_direct_format_safety_preserved(self):
+        """Existing direct format safety must not regress."""
+        env = SandboxedEnvironment()
+        t = env.from_string(u'{{ "a{0.__class__}b".format(42) }}')
+        assert t.render() == u"ab"
+
+    def test_direct_format_benign_still_works(self):
+        """Benign format calls must still work."""
+        env = SandboxedEnvironment()
+        t = env.from_string(u'{{ "hello {}".format(name) }}')
+        assert t.render(name=u"world") == u"hello world"
+
+
+class TestCVE202527516(object):
+    """CVE-2025-27516: |attr filter must route through sandboxed getattr."""
+
+    def test_attr_filter_blocks_format_method(self):
+        """``|attr("format")`` must not bypass the sandbox."""
+        env = SandboxedEnvironment()
+        t = env.from_string(u"{{ ''|attr('format')('{0}', 'pwn') }}")
+        with pytest.raises(Exception):
+            t.render()
+
+    def test_attr_filter_blocks_dunder_attributes(self):
+        """``|attr`` must continue to block dunder attributes."""
+        env = SandboxedEnvironment()
+        t = env.from_string(u'{{ cls|attr("__subclasses__")() }}')
+        pytest.raises(SecurityError, t.render, cls=int)
+
+    def test_attr_filter_allows_safe_attributes(self):
+        """``|attr`` must still work for safe attribute access."""
+        env = SandboxedEnvironment()
+        t = env.from_string(u'{{ foo|attr("bar") }}')
+        from jinja2.sandbox import SandboxedEnvironment as _SE
+
+        class _Obj(object):
+            bar = u"hello"
+
+        assert t.render(foo=_Obj()) == u"hello"
