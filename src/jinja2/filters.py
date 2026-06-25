@@ -238,9 +238,7 @@ def do_xmlattr(_eval_ctx, d, autospace=True):
         if value is None or isinstance(value, Undefined):
             continue
         if _attr_key_re.search(key) is not None:
-            raise FilterArgumentError(
-                "Invalid character in attribute name: %r" % key
-            )
+            raise ValueError("Invalid character in attribute name: %r" % key)
         items.append(u'%s="%s"' % (escape(key), escape(value)))
     rv = u" ".join(items)
     if autospace and rv:
