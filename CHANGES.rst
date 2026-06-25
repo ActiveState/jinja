@@ -1,5 +1,17 @@
 .. currentmodule:: jinja2
 
+Version 2.11.3.post2
+--------------------
+
+Released 2026-06-25
+
+-   The ``xmlattr`` filter now raises ``ValueError`` (instead of
+    ``FilterArgumentError``) when a key contains an invalid character,
+    matching the exception type used by upstream Jinja 3.1.4+ for the same
+    CVE-2024-34064 / CVE-2024-22195 check. The security behaviour and error
+    message are unchanged; only the exception class is aligned so callers
+    can use a single ``except ValueError`` across Python 2 and 3.
+
 Version 2.11.3+security.1
 --------------------------
 
